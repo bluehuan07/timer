@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>4 · 怎麼換 App 圖示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0d12; --ink:#f4f1ea; --muted:#9a9aa6;
+    --focus:#ff7a4d; --rest:#4fd1c5;
+    --card:rgba(255,255,255,.035); --line:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Noto Sans TC","Bricolage Grotesque",sans-serif;
+    background:
+      radial-gradient(120% 70% at 50% -10%, color-mix(in srgb,var(--focus) 16%,transparent), transparent 55%),
+      var(--bg);
+    color:var(--ink); line-height:1.75; min-height:100dvh;
+    padding:max(28px,env(safe-area-inset-top)) 20px 80px;
+    -webkit-text-size-adjust:100%;
+  }
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");}
+  .wrap{max-width:680px;margin:0 auto;position:relative;z-index:1}
+
+  /* 導覽列 */
+  .nav{display:flex;gap:8px;margin-bottom:34px;flex-wrap:wrap}
+  .nav a{font-family:"JetBrains Mono",monospace;font-size:12px;text-decoration:none;
+    color:var(--muted);border:1px solid var(--line);padding:7px 13px;border-radius:999px;
+    transition:.2s}
+  .nav a.here{color:var(--bg);background:var(--focus);border-color:var(--focus);font-weight:600}
+
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--focus);margin-bottom:14px}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;
+    font-size:clamp(30px,8vw,46px);line-height:1.1;letter-spacing:-.02em;margin-bottom:14px}
+  .lede{color:var(--muted);font-size:17px;margin-bottom:40px}
+
+  h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:24px;
+    margin:46px 0 16px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  h2::before{content:"";width:9px;height:22px;border-radius:3px;background:var(--focus)}
+  h2.teal::before{background:var(--rest)}
+  p{margin-bottom:16px}
+  .muted{color:var(--muted)}
+  strong{color:var(--ink);font-weight:700}
+  .hl{color:var(--focus);font-weight:700}
+  .hl-t{color:var(--rest);font-weight:700}
+  code{font-family:"JetBrains Mono",monospace;font-size:.88em;
+    background:rgba(255,255,255,.07);padding:2px 7px;border-radius:6px;color:var(--rest)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:22px 22px 8px;margin:22px 0}
+
+  /* 類比小框 */
+  .analogy{border-left:3px solid var(--rest);background:rgba(79,209,197,.07);
+    padding:16px 18px;border-radius:0 12px 12px 0;margin:22px 0;font-size:15px}
+  .analogy b{color:var(--rest)}
+
+  /* 警示小框（橘） */
+  .warn{border-left:3px solid var(--focus);background:rgba(255,122,77,.08);
+    padding:16px 18px;border-radius:0 12px 12px 0;margin:22px 0;font-size:15px}
+  .warn b{color:var(--focus)}
+
+  /* 檔案尺寸表 */
+  .fields{margin:18px 0}
+  .field{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:12px 0;
+    border-bottom:1px solid var(--line);align-items:baseline}
+  .field:last-child{border-bottom:none}
+  .field .k{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--rest);word-break:break-all}
+  .field .v{font-size:14px;color:var(--muted)}
+  .field .v b{color:var(--ink)}
+  @media(max-width:460px){.field{grid-template-columns:1fr;gap:3px}}
+
+  /* 步驟清單 */
+  .steps{list-style:none;counter-reset:s;margin:18px 0}
+  .steps li{counter-increment:s;position:relative;padding:0 0 18px 46px;margin:0}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:-2px;
+    width:30px;height:30px;border-radius:50%;background:var(--focus);color:var(--bg);
+    font-family:"JetBrains Mono",monospace;font-weight:600;font-size:14px;
+    display:flex;align-items:center;justify-content:center}
+  .steps li b{color:var(--ink)}
+
+  /* 程式碼區塊 */
+  pre{font-family:"JetBrains Mono",monospace;font-size:12.5px;line-height:1.7;
+    background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin:18px 0;overflow-x:auto;color:var(--ink)}
+  pre .c{color:var(--muted)}
+
+  .foot{margin-top:54px;padding-top:22px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .foot a{color:var(--focus);text-decoration:none;font-weight:600;font-size:15px}
+  .pg{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a href="1-觀念說明.html">① 觀念</a>
+    <a href="2-推上github.html">② 推上 GitHub</a>
+    <a href="3-在iphone安裝.html">③ 在 iPhone 安裝</a>
+    <a class="here" href="#">④ 換 icon</a>
+  </nav>
+
+  <div class="kicker">Part 4 — 換圖示</div>
+  <h1>怎麼換掉<br>App 的圖示？</h1>
+  <p class="lede">想把桌面上那顆圖示換成自己喜歡的圖，其實不用改任何程式碼，重點在「同檔名覆蓋」加上兩個容易忘的收尾步驟。</p>
+
+  <h2>圖示由四個檔組成</h2>
+  <p>App 顯示的圖示不是一張圖，而是 <code>icons/</code> 裡的<strong>四個 PNG</strong>，分別給不同平台用。換圖就是把這四個檔換掉：</p>
+
+  <div class="card">
+    <div class="fields">
+      <div class="field"><span class="k">icon-180.png</span><span class="v"><b>180×180</b>，iOS 加到主畫面用（在 <code>index.html</code> 的 apple-touch-icon 引用）</span></div>
+      <div class="field"><span class="k">icon-192.png</span><span class="v"><b>192×192</b>，Android 圖示（在 manifest 引用）</span></div>
+      <div class="field"><span class="k">icon-512.png</span><span class="v"><b>512×512</b>，Android 安裝／啟動畫面</span></div>
+      <div class="field"><span class="k">icon-512-maskable.png</span><span class="v"><b>512×512</b>，可遮罩版，內容置中讓 Android 怎麼裁都不切到重點</span></div>
+    </div>
+  </div>
+
+  <h2>最簡單做法：同檔名覆蓋</h2>
+  <p>只要準備好新圖，用<strong>一模一樣的檔名和尺寸</strong>覆蓋掉這四個檔就好。這樣 <code>manifest.webmanifest</code> 和 <code>index.html</code> 裡的路徑完全不用改 —— 它們指向的是檔名，內容換了路徑還是對的。</p>
+  <p>製作要點：</p>
+  <ul style="margin:0 0 16px 20px;color:var(--muted);font-size:15px">
+    <li>準備一張<strong>正方形、至少 512×512</strong> 的來源圖（越大越好，例如 1024），再縮出各尺寸。</li>
+    <li>背景建議<strong>不透明</strong>，配合深色底 <code>#0c0d12</code> 比較統一。</li>
+    <li>四張要用<strong>同一張來源</strong>，否則 iPhone 和 Android 會顯示不同圖。</li>
+  </ul>
+
+  <div class="warn">
+    <b>maskable 那張要留白：</b>Android 各家手機圖示形狀不同（圓、方、水滴），系統會去裁切。所以 <code>icon-512-maskable.png</code> 要把重點縮在<strong>中間約 80%</strong>，四周補背景色，這樣怎麼裁都不會切到主體。
+  </div>
+
+  <h2 class="teal">用一張大圖一次產生四個尺寸</h2>
+  <p>不想開繪圖軟體一張張匯出，在 Windows 上可以直接用 PowerShell 內建的 <code>System.Drawing</code> 縮圖。把來源放成 1024×1024，跑一段腳本就好（前三張直接縮放，maskable 縮到 80% 置中加深色底）：</p>
+
+  <pre><span class="c"># 來源：一張 1024×1024 的 PNG</span>
+Add-Type -AssemblyName System.Drawing
+
+function Save-Resized($src, $out, $size) {
+    $img = [System.Drawing.Image]::FromFile($src)
+    $bmp = New-Object System.Drawing.Bitmap($size, $size)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.InterpolationMode =
+        [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.DrawImage($img, 0, 0, $size, $size)
+    $bmp.Save($out, [Drawing.Imaging.ImageFormat]::Png)
+    $g.Dispose(); $bmp.Dispose(); $img.Dispose()
+}
+
+Save-Resized "source.png" "icons/icon-180.png" 180
+Save-Resized "source.png" "icons/icon-192.png" 192
+Save-Resized "source.png" "icons/icon-512.png" 512
+<span class="c"># maskable 另外把圖縮到 0.8 置中、四周填 #0c0d12</span></pre>
+
+  <div class="analogy">
+    <b>後端類比：</b>這就像用一張原始大圖，在不同 endpoint 回傳不同解析度的縮圖（image resizing）。來源只留一份高解析的，輸出各尺寸由程式產生，才不會每張都要手動維護。
+  </div>
+
+  <h2>兩個一定要做的收尾</h2>
+  <p>圖換好了，但你重新整理網頁常常還是看到舊圖 —— 因為被「快取」住了。有兩層快取要處理：</p>
+
+  <ol class="steps">
+    <li><b>更新 Service Worker 版本號。</b><br>
+      <span class="muted">打開 <code>sw.js</code>，把 <code>const CACHE = "timer-v2"</code> 往上加成 <code>"timer-v3"</code>。版本號沒變，瀏覽器就認定內容沒變，會一直回舊圖。</span></li>
+    <li><b>把圖示從主畫面移除再重新加入。</b><br>
+      <span class="muted">iOS／Android 對「已加到主畫面」的圖示會<strong>另外快取一份</strong>，連改了版本號都未必馬上更新。移除 → 重新整理網頁 → 再「加入主畫面」一次最保險。</span></li>
+  </ol>
+
+  <div class="analogy">
+    <b>為什麼改版本號就會更新？</b>Service Worker 的離線快取像一個有版本的本地快取層（概念近似 cache key）。改了 key，舊快取整批失效，瀏覽器才會重新去抓新檔。這是 PWA 最常見的坑：<span class="hl-t">改了檔案卻忘了動版本號，使用者永遠看不到更新。</span>
+  </div>
+
+  <div class="warn">
+    <b>順帶一提：</b>當來源用的高解析原圖（例如那張 1024 的 <code>.jpg</code>）<strong>不會被 App 用到</strong>，manifest 和 index.html 只引用 <code>.png</code>。它放進 repo 只是多餘的素材，可以刪掉，或加進 <code>.gitignore</code>（例如 <code>icons/*.jpg</code>），自己在電腦別處留一份即可。
+  </div>
+
+  <div class="foot">
+    <span class="pg">04 / 04</span>
+    <a href="3-在iphone安裝.html">← 上一頁：在 iPhone 安裝</a>
+  </div>
+
+</div>
+</body>
+</html>
