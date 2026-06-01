@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>2 · 推上 GitHub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0d12; --ink:#f4f1ea; --muted:#9a9aa6;
+    --focus:#ff7a4d; --rest:#4fd1c5;
+    --card:rgba(255,255,255,.035); --line:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Noto Sans TC","Bricolage Grotesque",sans-serif;
+    background:radial-gradient(120% 70% at 50% -10%, color-mix(in srgb,var(--rest) 16%,transparent), transparent 55%),var(--bg);
+    color:var(--ink); line-height:1.75; min-height:100dvh;
+    padding:max(28px,env(safe-area-inset-top)) 20px 80px;-webkit-text-size-adjust:100%;
+  }
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");}
+  .wrap{max-width:680px;margin:0 auto;position:relative;z-index:1}
+
+  .nav{display:flex;gap:8px;margin-bottom:34px;flex-wrap:wrap}
+  .nav a{font-family:"JetBrains Mono",monospace;font-size:12px;text-decoration:none;
+    color:var(--muted);border:1px solid var(--line);padding:7px 13px;border-radius:999px;transition:.2s}
+  .nav a.here{color:var(--bg);background:var(--rest);border-color:var(--rest);font-weight:600}
+
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--rest);margin-bottom:14px}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;
+    font-size:clamp(30px,8vw,46px);line-height:1.1;letter-spacing:-.02em;margin-bottom:14px}
+  .lede{color:var(--muted);font-size:17px;margin-bottom:30px}
+
+  p{margin-bottom:16px}
+  .muted{color:var(--muted)}
+  strong{color:var(--ink);font-weight:700}
+  code{font-family:"JetBrains Mono",monospace;font-size:.88em;
+    background:rgba(255,255,255,.07);padding:2px 7px;border-radius:6px;color:var(--rest)}
+
+  /* 檔案清單提示框 */
+  .files{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:24px 0}
+  .files .tt{font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .files .tt svg{width:18px;height:18px;color:var(--focus)}
+  .files ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+  .files li{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--ink);
+    display:flex;align-items:center;gap:7px}
+  .files li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--rest);flex:none}
+  @media(max-width:460px){.files ul{grid-template-columns:1fr}}
+
+  /* 步驟 */
+  .step{display:flex;gap:16px;margin:0 0 8px;padding:20px 0;border-bottom:1px solid var(--line)}
+  .step:last-of-type{border-bottom:none}
+  .num{flex:none;width:38px;height:38px;border-radius:50%;background:var(--rest);color:var(--bg);
+    font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px;
+    display:grid;place-items:center}
+  .step-body{flex:1;min-width:0}
+  .step-body h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:19px;margin-bottom:8px}
+  .step-body p{margin-bottom:8px;font-size:15px}
+  .path{font-family:"JetBrains Mono",monospace;font-size:13px;background:rgba(79,209,197,.1);
+    border:1px solid rgba(79,209,197,.25);color:var(--rest);padding:3px 9px;border-radius:7px;
+    display:inline-block;margin:2px 0}
+
+  .warn{border-left:3px solid var(--focus);background:rgba(255,122,77,.08);
+    padding:14px 16px;border-radius:0 12px 12px 0;margin:14px 0;font-size:14px}
+  .warn b{color:var(--focus)}
+
+  /* 替代方案卡片（IntelliJ） */
+  .alt{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:16px 0}
+  .alt .tt{font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:16px}
+  .alt .tt svg{width:18px;height:18px;color:var(--rest);flex:none}
+  .alt .sub{color:var(--muted);font-size:14px;margin-bottom:6px}
+  .alt ol{margin:12px 0 2px;padding-left:22px}
+  .alt li{font-size:14px;margin-bottom:9px;padding-left:3px}
+  .alt li strong{color:var(--ink)}
+
+  .url-box{background:#000;border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    margin:14px 0;font-family:"JetBrains Mono",monospace;font-size:14px;word-break:break-all}
+  .url-box .p{color:var(--muted)}
+  .url-box .h{color:var(--rest)}
+
+  .foot{margin-top:46px;padding-top:22px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .foot a{color:var(--rest);text-decoration:none;font-weight:600;font-size:15px}
+  .foot a.prev{color:var(--muted)}
+  .pg{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a href="1-觀念說明.html">① 觀念</a>
+    <a class="here" href="#">② 推上 GitHub</a>
+    <a href="3-在iphone安裝.html">③ 在 iPhone 安裝</a>
+  </nav>
+
+  <div class="kicker">Part 2 — 部署</div>
+  <h1>推上<br>GitHub Pages</h1>
+  <p class="lede">把計時器放到網路上，拿到一個免費的 HTTPS 網址。整個過程不用裝任何工具，在 GitHub 網頁上點一點就好。</p>
+
+  <div class="files">
+    <div class="tt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7L9 4H5a2 2 0 0 0-2 2z"/></svg>
+      要上傳的檔案
+    </div>
+    <ul>
+      <li>index.html</li>
+      <li>manifest.webmanifest</li>
+      <li>sw.js</li>
+      <li>icons/ <span style="opacity:.6">（內含 icon-180 / 192 / 512 / 512-maskable 四張）</span></li>
+    </ul>
+  </div>
+  <div class="warn"><b>注意：</b>讓 <code>index.html</code>、<code>manifest.webmanifest</code>、<code>sw.js</code> 直接躺在 repo 根目錄，4 張圖示保持在 <code>icons/</code> 資料夾裡一起上傳。<strong>不要把最外層那個資料夾也一起傳上去</strong>——路徑層級錯了，圖示和 manifest 會抓不到。</div>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="step-body">
+      <h3>建立 repository</h3>
+      <p>到 GitHub 按右上角 <strong>New repository</strong>。取個名字（例如 <code>timer</code>），<strong>務必設為 Public</strong>（免費版 Pages 需要公開），按建立。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="step-body">
+      <h3>上傳檔案 <span class="muted" style="font-weight:400;font-size:14px">— 方法 A：網頁拖檔</span></h3>
+      <p>在 repo 頁面點 <strong>Add file → Upload files</strong>，把檔案<strong>全部一起</strong>拖進去（<code>icons/</code> 連資料夾一起拖），最後按 <strong>Commit changes</strong>。改一次拖一次，適合偶爾更新。</p>
+    </div>
+  </div>
+
+  <div class="alt">
+    <div class="tt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      方法 B：用 IntelliJ 直接推（推薦給後端）
+    </div>
+    <p class="sub">專案本來就在 <code>IdeaProjects</code> 底下，用 IntelliJ 內建的 Git 整合最順，之後改檔也是一鍵 push，不必每次回網頁拖檔。</p>
+    <div class="warn" style="margin-top:12px">
+      <b>先說一個常見卡點：</b>剛用 IntelliJ 開這個資料夾時，<strong>找不到「Git」選單是正常的</strong>。資料夾還沒納入版控前，頂部只有 <code>VCS</code> 選單；等你做完下面第 2 步（等於 <code>git init</code>），<code>Git</code> 選單才會出現。
+    </div>
+    <ol>
+      <li><strong>登入 GitHub 帳號（只需一次）</strong>：<br><span class="path">Settings → Version Control → GitHub → 按「+」</span> → 用瀏覽器授權登入。</li>
+      <li><strong>啟用版控</strong>：頂部 <span class="path">VCS → Enable Version Control Integration…</span> → 選 <code>Git</code>。這步等於 <code>git init</code>，做完「Git」選單就會冒出來。</li>
+      <li><strong>建立 commit</strong>：按 <code>Ctrl+K</code> 打開 Commit 面板 → 勾檔案、寫訊息 → Commit。（<code>.gitignore</code> 已幫你排除 <code>.claude/</code> 與 IDE 設定，會自動略過。）</li>
+      <li><strong>接上遠端 repo</strong>：<span class="path">Git → Manage Remotes → 按「+」</span> → 貼上你網頁建好的網址 <code>https://github.com/你的帳號/timer.git</code>。</li>
+      <li><strong>推送</strong>：<span class="path">Git → Push</span>（<code>Ctrl+Shift+K</code>）。</li>
+    </ol>
+    <p class="sub" style="margin:10px 0 0">不管用方法 A 還 B，推完<strong>程式碼還沒上線</strong>——都要再回網頁做下面第 3 步開啟 Pages，才會生出可用的網址。</p>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="step-body">
+      <h3>開啟 Pages</h3>
+      <p>進入 repo 的 <span class="path">Settings → Pages</span></p>
+      <p>在 <strong>Source</strong> 選 <code>Deploy from a branch</code>，<strong>Branch</strong> 選 <code>main</code>、資料夾選 <code>/ (root)</code>，按 <strong>Save</strong>。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="step-body">
+      <h3>等待並取得網址</h3>
+      <p>等一兩分鐘後重整這個頁面，上方會出現你的網址：</p>
+      <div class="url-box">
+        <span class="p">https://</span><span class="h">你的帳號</span><span class="p">.github.io/</span><span class="h">timer</span><span class="p">/</span>
+      </div>
+      <p class="muted">這就是可以分享給任何人的公開網址。下一頁教你怎麼把它變成 iPhone 上的 App。</p>
+    </div>
+  </div>
+
+  <div class="warn">
+    <b>給後端的提醒：</b>之後若改了任何檔案重新上傳，記得把 <code>sw.js</code> 裡的 <code>timer-v1</code> 改成 <code>timer-v2</code>，使用者重開 App 才會拿到新版，否則會一直吃舊的離線快取。這是 PWA 最常見的坑。
+  </div>
+
+  <div class="foot">
+    <a class="prev" href="1-觀念說明.html">← 上一頁</a>
+    <span class="pg">02 / 03</span>
+    <a href="3-在iphone安裝.html">下一頁：在 iPhone 安裝 →</a>
+  </div>
+
+</div>
+</body>
+</html>

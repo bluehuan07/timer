@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>1 · icon 與 manifest 是什麼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0d12; --ink:#f4f1ea; --muted:#9a9aa6;
+    --focus:#ff7a4d; --rest:#4fd1c5;
+    --card:rgba(255,255,255,.035); --line:rgba(255,255,255,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Noto Sans TC","Bricolage Grotesque",sans-serif;
+    background:
+      radial-gradient(120% 70% at 50% -10%, color-mix(in srgb,var(--focus) 16%,transparent), transparent 55%),
+      var(--bg);
+    color:var(--ink); line-height:1.75; min-height:100dvh;
+    padding:max(28px,env(safe-area-inset-top)) 20px 80px;
+    -webkit-text-size-adjust:100%;
+  }
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");}
+  .wrap{max-width:680px;margin:0 auto;position:relative;z-index:1}
+
+  /* 導覽列 */
+  .nav{display:flex;gap:8px;margin-bottom:34px;flex-wrap:wrap}
+  .nav a{font-family:"JetBrains Mono",monospace;font-size:12px;text-decoration:none;
+    color:var(--muted);border:1px solid var(--line);padding:7px 13px;border-radius:999px;
+    transition:.2s}
+  .nav a.here{color:var(--bg);background:var(--focus);border-color:var(--focus);font-weight:600}
+
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--focus);margin-bottom:14px}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;
+    font-size:clamp(30px,8vw,46px);line-height:1.1;letter-spacing:-.02em;margin-bottom:14px}
+  .lede{color:var(--muted);font-size:17px;margin-bottom:40px}
+
+  h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:24px;
+    margin:46px 0 16px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  h2::before{content:"";width:9px;height:22px;border-radius:3px;background:var(--focus)}
+  h2.teal::before{background:var(--rest)}
+  p{margin-bottom:16px}
+  .muted{color:var(--muted)}
+  strong{color:var(--ink);font-weight:700}
+  .hl{color:var(--focus);font-weight:700}
+  .hl-t{color:var(--rest);font-weight:700}
+  code{font-family:"JetBrains Mono",monospace;font-size:.88em;
+    background:rgba(255,255,255,.07);padding:2px 7px;border-radius:6px;color:var(--rest)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:22px 22px 8px;margin:22px 0}
+
+  /* 類比小框 */
+  .analogy{border-left:3px solid var(--rest);background:rgba(79,209,197,.07);
+    padding:16px 18px;border-radius:0 12px 12px 0;margin:22px 0;font-size:15px}
+  .analogy b{color:var(--rest)}
+
+  /* 檔案關係圖 */
+  .chain{display:flex;flex-direction:column;gap:0;margin:14px 0 24px}
+  .node{border:1px solid var(--line);border-radius:14px;padding:15px 18px;background:rgba(255,255,255,.025)}
+  .node .role{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+  .node .fname{font-family:"JetBrains Mono",monospace;font-size:15px;font-weight:600;
+    color:var(--focus);margin-bottom:3px}
+  .node.t .fname{color:var(--rest)}
+  .node.i .fname{color:var(--ink)}
+  .arrow{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;color:var(--muted)}
+  .arrow .lbl{font-family:"JetBrains Mono",monospace;font-size:11px}
+  .arrow svg{width:18px;height:18px}
+
+  /* manifest 欄位表 */
+  .fields{margin:18px 0}
+  .field{display:grid;grid-template-columns:130px 1fr;gap:12px;padding:12px 0;
+    border-bottom:1px solid var(--line);align-items:baseline}
+  .field:last-child{border-bottom:none}
+  .field .k{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--rest);word-break:break-all}
+  .field .v{font-size:14px;color:var(--muted)}
+  .field .v b{color:var(--ink)}
+  @media(max-width:460px){.field{grid-template-columns:1fr;gap:3px}}
+
+  .icon-demo{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 6px}
+  .icon-demo .it{text-align:center;flex:1;min-width:120px}
+  .icon-demo .it .sz{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--rest);margin-top:8px}
+  .icon-demo .it .ds{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+  .ic{width:62px;height:62px;border-radius:16px;margin:0 auto;display:block}
+
+  .foot{margin-top:54px;padding-top:22px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .foot a{color:var(--focus);text-decoration:none;font-weight:600;font-size:15px}
+  .pg{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a class="here" href="#">① 觀念</a>
+    <a href="2-推上github.html">② 推上 GitHub</a>
+    <a href="3-在iphone安裝.html">③ 在 iPhone 安裝</a>
+  </nav>
+
+  <div class="kicker">Part 1 — 觀念</div>
+  <h1>icon 與 manifest<br>是做什麼用的？</h1>
+  <p class="lede">把計時器變成「桌面上可以點的 App」會用到幾個檔案，這頁說明它們各自的角色，以及怎麼串在一起。</p>
+
+  <h2>icon：App 的「長相」</h2>
+  <p>那幾張 png，就是<strong>加到主畫面後，出現在 iPhone 桌面上的那顆圖示</strong>。沒有它，系統只會抓一張網頁縮圖當圖示，通常很醜、看不出是什麼。</p>
+  <p>準備多種尺寸，是因為不同地方用不同大小，系統會挑最合適的那張，避免硬放大而模糊：</p>
+
+  <div class="card">
+    <div class="icon-demo">
+      <div class="it">
+        <svg class="ic" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#0c0d12"/><circle cx="50" cy="50" r="30" fill="none" stroke="#ff7a4d" stroke-width="8" stroke-linecap="round" stroke-dasharray="160 28" transform="rotate(-110 50 50)"/><circle cx="50" cy="20" r="5" fill="#4fd1c5"/></svg>
+        <div class="sz">icon-180</div>
+        <div class="ds">iOS 專用<br>加到主畫面抓這張</div>
+      </div>
+      <div class="it">
+        <svg class="ic" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#0c0d12"/><circle cx="50" cy="50" r="30" fill="none" stroke="#ff7a4d" stroke-width="8" stroke-linecap="round" stroke-dasharray="160 28" transform="rotate(-110 50 50)"/><circle cx="50" cy="20" r="5" fill="#4fd1c5"/></svg>
+        <div class="sz">192 / 512</div>
+        <div class="ds">Android 與<br>安裝畫面、啟動畫面</div>
+      </div>
+      <div class="it">
+        <svg class="ic" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#0c0d12"/><circle cx="50" cy="50" r="24" fill="none" stroke="#ff7a4d" stroke-width="7" stroke-linecap="round" stroke-dasharray="128 22" transform="rotate(-110 50 50)"/><circle cx="50" cy="26" r="4" fill="#4fd1c5"/></svg>
+        <div class="sz">512 maskable</div>
+        <div class="ds">可被裁成圓/方<br>內容留在中央安全區</div>
+      </div>
+    </div>
+  </div>
+  <p class="muted">最後一種「maskable（可遮罩）」是因為 Android 各家手機圖示形狀不同（圓、方、水滴），系統會去裁切。這版把內容縮在中央，<strong>怎麼裁都不會切到重點</strong>。</p>
+
+  <h2 class="teal">manifest：App 的「身分證」</h2>
+  <p><code>manifest.webmanifest</code> 是一份設定檔，告訴瀏覽器：這個網頁要被當成 App 安裝時，<strong>叫什麼名字、用哪個圖示、要怎麼顯示</strong>。</p>
+
+  <div class="analogy">
+    <b>後端類比：</b>它就像 Spring Boot 的 <code>application.yml</code>，或 Android 的 <code>AndroidManifest.xml</code> —— 一份描述應用程式 metadata 的設定檔。
+  </div>
+
+  <p>每一欄的作用：</p>
+  <div class="card">
+    <div class="fields">
+      <div class="field"><span class="k">name</span><span class="v">安裝畫面顯示的<b>完整名稱</b></span></div>
+      <div class="field"><span class="k">short_name</span><span class="v">桌面圖示下方的<b>短名稱</b>（太長會被截斷）</span></div>
+      <div class="field"><span class="k">start_url</span><span class="v">點圖示打開時，<b>從哪個網址啟動</b></span></div>
+      <div class="field"><span class="k">display</span><span class="v"><b>最關鍵的一行</b>，見下方</span></div>
+      <div class="field"><span class="k">orientation</span><span class="v">鎖定方向，<b>portrait</b> 是直向</span></div>
+      <div class="field"><span class="k">background_color</span><span class="v">啟動瞬間、內容還沒載完時的<b>底色</b></span></div>
+      <div class="field"><span class="k">theme_color</span><span class="v">系統 UI（狀態列等）的<b>色調</b></span></div>
+      <div class="field"><span class="k">icons</span><span class="v">指向上面那些<b>圖示檔</b></span></div>
+    </div>
+  </div>
+
+  <p>其中最關鍵的是 <code>"display": "standalone"</code>。它決定你點桌面圖示打開時長什麼樣：</p>
+  <p><span class="hl">standalone</span> → 全螢幕、<strong>沒有 Safari 的網址列和工具列</strong>，像獨立 App。<br>
+  <span class="muted">browser</span> → 打開後還是像在 Safari 裡開網頁，有網址列。</p>
+  <p>你要的「像 App 一樣」體驗，就是這一行給的。</p>
+
+  <h2>三者怎麼串起來？</h2>
+  <p>用一條鏈來看就清楚了，各司其職：</p>
+
+  <div class="chain">
+    <div class="node i">
+      <div class="role">網頁本體</div>
+      <div class="fname">index.html</div>
+      <div class="muted" style="font-size:14px">head 裡寫一行 link 指向 manifest</div>
+    </div>
+    <div class="arrow">
+      <span class="lbl">&lt;link rel="manifest"&gt;</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+    </div>
+    <div class="node t">
+      <div class="role">App 身分設定檔</div>
+      <div class="fname">manifest.webmanifest</div>
+      <div class="muted" style="font-size:14px">定義名稱、顯示模式，再指向圖示</div>
+    </div>
+    <div class="arrow">
+      <span class="lbl">"icons": [ ... ]</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+    </div>
+    <div class="node">
+      <div class="role">桌面圖示外觀</div>
+      <div class="fname" style="color:var(--ink)">icon-*.png</div>
+      <div class="muted" style="font-size:14px">不同尺寸，系統挑合適的用</div>
+    </div>
+  </div>
+
+  <p>少了 manifest，瀏覽器就不認為這是個可安裝的 App，「加入主畫面」只會存成普通書籤，而不是 App。</p>
+
+  <div class="analogy">
+    <b>還有第四個角色：</b><code>sw.js</code>（Service Worker）管的是「離線快取」，跟外觀、身分無關 —— 它負責「沒網路也能開」。概念上像後端的快取中介層（cache-aside）：請求先查快取，沒有才連網路。
+  </div>
+
+  <div class="foot">
+    <span class="pg">01 / 03</span>
+    <a href="2-推上github.html">下一頁：推上 GitHub →</a>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <!-- viewport-fit=cover 讓畫面延伸到 iPhone 瀏海/底部安全區 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <!-- 下面三行：加入主畫面後能全螢幕、像 App 一樣執行 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0c0d12">
+  <title>間歇計時器</title>
+
+  <!-- PWA：讓瀏覽器知道這是個可安裝的 App -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <!-- iOS 加到主畫面時用這張當圖示 -->
+  <link rel="apple-touch-icon" href="./icons/icon-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- 字型：線上會載 Google Font；iPhone 離線時自動 fallback 到內建的 Avenir / Menlo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== CSS 變數：把顏色集中管理，切換階段時只改這幾個值 ===== */
+    :root {
+      --bg: #0c0d12;
+      --ink: #f4f1ea;
+      --muted: #8b8b95;
+      /* 兩個階段各自的主色 */
+      --focus: #ff7a4d;   /* 專注：暖橘 */
+      --rest:  #4fd1c5;   /* 休息：青綠 */
+      --accent: var(--focus);  /* 目前作用中的顏色，由 JS 切換 */
+      --ring-track: rgba(255,255,255,.08);
+    }
+
+    /* 休息階段時，整體主色換成青綠（JS 會在 body 加上 .rest） */
+    body.rest { --accent: var(--rest); }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: "Bricolage Grotesque", "Avenir Next", -apple-system, sans-serif;
+      background:
+        radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 38px;
+      /* 避開 iPhone 瀏海與底部 Home Bar 的安全區 */
+      padding:
+        max(24px, env(safe-area-inset-top)) 24px
+        max(24px, env(safe-area-inset-bottom));
+      overflow: hidden;
+      transition: background .6s ease;
+      user-select: none;
+    }
+
+    /* 顆粒質感，讓深色背景不死板 */
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ===== 階段標籤（專注 / 休息） ===== */
+    .phase-label {
+      position: relative; z-index: 1;
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+      color: var(--accent);
+      transition: color .6s ease;
+    }
+    .phase-label small {
+      display: block;
+      margin-top: 8px;
+      font-size: 13px;
+      letter-spacing: .15em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    /* ===== 計時圓環 + 數字（這整塊會在切換時「彈跳一下」） ===== */
+    .dial {
+      position: relative; z-index: 1;
+      width: min(74vw, 320px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+    }
+    .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-track { fill: none; stroke: var(--ring-track); stroke-width: 6; }
+    .ring-bar {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 7;
+      stroke-linecap: round;
+      /* dashoffset 由 JS 控制，呈現倒數時環逐漸消失 */
+      transition: stroke-dashoffset .25s linear, stroke .6s ease;
+      filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 55%, transparent));
+    }
+    .time {
+      position: absolute;
+      font-family: "JetBrains Mono", "Menlo", monospace;
+      font-weight: 700;
+      font-size: clamp(54px, 16vw, 88px);
+      /* tabular-nums 讓每個數字等寬，倒數時不會左右抖動 */
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.02em;
+    }
+
+    /* 切換階段瞬間，加上這個 class 觸發彈跳 */
+    .dial.bounce { animation: bounce .45s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes bounce {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.09); }
+      100% { transform: scale(1); }
+    }
+
+    /* ===== 控制按鈕 ===== */
+    .controls {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 22px;
+    }
+    button {
+      font-family: inherit;
+      border: none; cursor: pointer; color: inherit;
+      background: transparent;
+      transition: transform .15s ease, opacity .2s ease;
+    }
+    button:active { transform: scale(.92); }
+
+    /* 中間的播放/暫停大圓鈕 */
+    .play {
+      width: 78px; height: 78px; border-radius: 50%;
+      background: var(--accent);
+      color: #0c0d12;
+      display: grid; place-items: center;
+      box-shadow: 0 8px 30px color-mix(in srgb, var(--accent) 45%, transparent);
+      transition: background .6s ease, transform .15s ease;
+    }
+    .play svg { width: 30px; height: 30px; }
+
+    .reset {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,.15);
+      color: var(--muted);
+      display: grid; place-items: center;
+    }
+    .reset svg { width: 22px; height: 22px; }
+
+    /* 已完成的「專注」回合計數 */
+    .cycles {
+      position: relative; z-index: 1;
+      font-size: 13px; letter-spacing: .12em;
+      color: var(--muted); font-weight: 600;
+    }
+    .cycles b { color: var(--ink); }
+
+    /* ===== 設定面板（點齒輪展開） ===== */
+    .settings {
+      position: relative; z-index: 1;
+      width: min(86vw, 360px);
+      display: grid; gap: 16px;
+      padding: 20px 22px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 24px;
+      background: rgba(255,255,255,.03);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+    /* 用 hidden 屬性切換顯示／隱藏，最簡單的做法 */
+    .settings[hidden] { display: none; }
+
+    .set-row {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .set-name {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 600; font-size: 15px; letter-spacing: .08em;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; }
+    .dot.focus { background: var(--focus); }
+    .dot.rest  { background: var(--rest); }
+
+    .stepper { display: flex; align-items: center; gap: 6px; }
+    .step {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,.15);
+      color: var(--ink); font-size: 20px; line-height: 1;
+      display: grid; place-items: center;
+    }
+    .step:active { transform: scale(.9); }
+
+    .val-wrap { display: flex; align-items: baseline; gap: 3px; justify-content: center; }
+    .val {
+      width: 46px; text-align: center;
+      font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 22px;
+      font-variant-numeric: tabular-nums;
+      background: transparent; border: none; color: var(--ink);
+      border-bottom: 1.5px solid transparent;
+    }
+    .val:focus { outline: none; border-bottom-color: var(--accent); }
+    /* 拿掉數字輸入框預設的上下小箭頭 */
+    .val::-webkit-outer-spin-button, .val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .val[type=number] { -moz-appearance: textfield; }
+    .unit { font-size: 13px; color: var(--muted); }
+
+    /* ===== 全螢幕閃光：切換階段時 opacity 0→1→0 ===== */
+    .flash {
+      position: fixed; inset: 0; z-index: 50;
+      background: #fff;
+      opacity: 0; pointer-events: none;
+    }
+    .flash.fire { animation: flash .32s ease-out; }
+    @keyframes flash {
+      0%   { opacity: 0; }
+      18%  { opacity: .92; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="focus">
+
+  <div class="flash" id="flash"></div>
+
+  <div class="phase-label" id="label">專注<small id="round-hint">第 1 回合</small></div>
+
+  <div class="dial" id="dial">
+    <svg viewBox="0 0 200 200">
+      <circle class="ring-track" cx="100" cy="100" r="88"/>
+      <circle class="ring-bar"   cx="100" cy="100" r="88" id="bar"/>
+    </svg>
+    <div class="time" id="time">0:30</div>
+  </div>
+
+  <div class="controls">
+    <button class="reset" id="reset" aria-label="重設">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+      </svg>
+    </button>
+    <button class="play" id="play" aria-label="開始">
+      <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="reset" id="gear" aria-label="設定">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="cycles">已完成 <b id="done">0</b> 回合專注</div>
+
+  <!-- 設定面板：預設用 hidden 隱藏，點齒輪才展開 -->
+  <div class="settings" id="settings" hidden>
+    <div class="set-row">
+      <span class="set-name"><span class="dot focus"></span>專注</span>
+      <div class="stepper">
+        <button class="step" data-act="focus-" aria-label="減少">−</button>
+        <span class="val-wrap">
+          <!-- inputmode=numeric：在 iPhone 上點一下會跳出數字鍵盤 -->
+          <input class="val" id="focus-val" type="number" inputmode="numeric" min="5" max="3600" step="5" value="30">
+          <span class="unit">秒</span>
+        </span>
+        <button class="step" data-act="focus+" aria-label="增加">+</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span class="set-name"><span class="dot rest"></span>休息</span>
+      <div class="stepper">
+        <button class="step" data-act="rest-" aria-label="減少">−</button>
+        <span class="val-wrap">
+          <input class="val" id="rest-val" type="number" inputmode="numeric" min="5" max="3600" step="5" value="10">
+          <span class="unit">秒</span>
+        </span>
+        <button class="step" data-act="rest+" aria-label="增加">+</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* =========================================================
+     設定區：想改秒數就改這裡（單位：秒）
+     PHASES 陣列會無限循環：專注 → 休息 → 專注 → 休息 …
+     ========================================================= */
+  const PHASES = [
+    { name: "專注", seconds: 30, key: "focus" },
+    { name: "休息", seconds: 10, key: "rest"  },
+  ];
+
+  // 圓環周長 = 2 * π * 半徑(88)，用來換算 dashoffset
+  const CIRC = 2 * Math.PI * 88;
+
+  // ---- 取得畫面元素 ----
+  const $time  = document.getElementById("time");
+  const $label = document.getElementById("label");
+  const $hint  = document.getElementById("round-hint");
+  const $bar   = document.getElementById("bar");
+  const $dial  = document.getElementById("dial");
+  const $flash = document.getElementById("flash");
+  const $play  = document.getElementById("play");
+  const $playIcon = document.getElementById("play-icon");
+  const $reset = document.getElementById("reset");
+  const $done  = document.getElementById("done");
+  const $gear     = document.getElementById("gear");
+  const $settings = document.getElementById("settings");
+  const $focusVal = document.getElementById("focus-val");
+  const $restVal  = document.getElementById("rest-val");
+
+  $bar.style.strokeDasharray = CIRC;
+
+  // ---- 狀態 ----
+  let phaseIndex = 0;          // 目前在第幾個階段
+  let remainingMs = PHASES[0].seconds * 1000;  // 這個階段剩多少毫秒
+  let endTime = 0;             // 倒數結束的時間戳（用時間戳比逐秒遞減更準）
+  let running = false;
+  let ticker = null;           // setInterval 的 id
+  let doneFocus = 0;           // 完成幾次「專注」
+
+  // 把毫秒格式化成 M:SS
+  function fmt(ms) {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m + ":" + String(s).padStart(2, "0");
+  }
+
+  // 把目前狀態畫到畫面上
+  function render() {
+    const phase = PHASES[phaseIndex];
+    const totalMs = phase.seconds * 1000;
+    const left = Math.max(0, remainingMs);
+
+    $time.textContent = fmt(left);
+    // 剩越多 → 環越滿；offset 越小代表畫越多
+    $bar.style.strokeDashoffset = CIRC * (1 - left / totalMs);
+
+    $label.firstChild.textContent = phase.name;
+    document.body.className = phase.key;       // 換主色（focus / rest）
+    $hint.textContent = "第 " + (doneFocus + 1) + " 回合";
+    $done.textContent = doneFocus;
+  }
+
+  // 切換到下一個階段：閃光 + 彈跳 + 嗶聲
+  function nextPhase() {
+    // 若剛結束的是「專注」，回合數 +1
+    if (PHASES[phaseIndex].key === "focus") doneFocus++;
+
+    phaseIndex = (phaseIndex + 1) % PHASES.length;  // 循環
+    remainingMs = PHASES[phaseIndex].seconds * 1000;
+    endTime = Date.now() + remainingMs;
+
+    fireFlash();
+    beep();
+  }
+
+  // 觸發全螢幕閃光 + 圓盤彈跳（重新觸發動畫的技巧：先移除 class 再加回）
+  function fireFlash() {
+    $flash.classList.remove("fire");
+    $dial.classList.remove("bounce");
+    void $flash.offsetWidth;   // 強制瀏覽器重排，動畫才會重播
+    $flash.classList.add("fire");
+    $dial.classList.add("bounce");
+    // iPhone Safari 目前不支援震動 API，Android 才會震
+    if (navigator.vibrate) navigator.vibrate(60);
+  }
+
+  // 用 Web Audio 產生短嗶聲（不需音檔，離線也能用）
+  let audioCtx = null;
+  function beep() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.26);
+    } catch (e) { /* 部分環境無法播放就略過 */ }
+  }
+
+  // 每 100ms 檢查一次剩餘時間
+  function tick() {
+    remainingMs = endTime - Date.now();
+    if (remainingMs <= 0) {
+      nextPhase();   // 時間到，換階段（仍持續執行）
+    }
+    render();
+  }
+
+  function start() {
+    running = true;
+    endTime = Date.now() + remainingMs;
+    // iOS 必須在使用者點擊後才能啟動音訊
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    ticker = setInterval(tick, 100);
+    $playIcon.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>'; // 暫停圖示
+  }
+
+  function pause() {
+    running = false;
+    clearInterval(ticker);
+    remainingMs = endTime - Date.now();  // 記住剩多少，下次接著跑
+    $playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';  // 播放圖示
+  }
+
+  function reset() {
+    pause();
+    phaseIndex = 0;
+    doneFocus = 0;
+    remainingMs = PHASES[0].seconds * 1000;
+    render();
+  }
+
+  // ---- 綁定按鈕 ----
+  $play.addEventListener("click", () => running ? pause() : start());
+  $reset.addEventListener("click", reset);
+
+  // ===== 設定面板邏輯 =====
+
+  // 點齒輪：展開／收合面板
+  $gear.addEventListener("click", () => { $settings.hidden = !$settings.hidden; });
+
+  // 把數字限制在 5 ~ 3600 秒之間，並對齊到 5 的倍數
+  function clampSec(v) {
+    if (isNaN(v)) v = 5;
+    v = Math.round(v / 5) * 5;
+    return Math.min(3600, Math.max(5, v));
+  }
+
+  // 讀取輸入框 → 寫進 PHASES。沒在跑時，畫面立刻更新成新秒數
+  function applySettings() {
+    const f = clampSec(parseInt($focusVal.value, 10));
+    const r = clampSec(parseInt($restVal.value, 10));
+    $focusVal.value = f;   // 把修正後的合法值寫回輸入框
+    $restVal.value = r;
+    PHASES[0].seconds = f; // 專注
+    PHASES[1].seconds = r; // 休息
+    // 計時器停著時，把目前階段的剩餘時間更新成新設定；正在跑就等下一輪自動套用
+    if (!running) {
+      remainingMs = PHASES[phaseIndex].seconds * 1000;
+      render();
+    }
+  }
+
+  // 四個 +/− 按鈕：依 data-act 決定加減哪一個、加還是減
+  document.querySelectorAll(".step").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const act = btn.dataset.act;                       // 例如 "focus+"
+      const input = act.startsWith("focus") ? $focusVal : $restVal;
+      const delta = act.endsWith("+") ? 5 : -5;
+      input.value = clampSec((parseInt(input.value, 10) || 0) + delta);
+      applySettings();
+    });
+  });
+
+  // 直接打字輸入時也即時套用
+  $focusVal.addEventListener("change", applySettings);
+  $restVal.addEventListener("change", applySettings);
+
+  // 初始畫面
+  render();
+  </script>
+
+  <!-- 註冊 Service Worker：負責離線快取，讓 App 沒網路也能開 -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch((err) => {
+          console.log("Service Worker 註冊失敗：", err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
