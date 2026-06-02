@@ -227,6 +227,29 @@
       18%  { opacity: .92; }
       100% { opacity: 0; }
     }
+
+    /* ===== 底部頁尾：版本 + 作者 + 說明文件連結 =====
+       用 fixed 固定在畫面最下方，才不會擠到中間置中的計時器版面 */
+    .footer {
+      position: fixed;
+      left: 0; right: 0;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      z-index: 1;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: .06em;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .footer .sep { opacity: .45; margin: 0 7px; }
+    .footer a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255,255,255,.22);
+      padding-bottom: 1px;
+      transition: color .2s ease;
+    }
+    .footer a:active { color: var(--ink); }
   </style>
 </head>
 <body class="focus">
@@ -261,6 +284,15 @@
   </div>
 
   <div class="cycles">已完成 <b id="done">0</b> 回合專注</div>
+
+  <!-- 底部頁尾：版本、作者、說明文件連結。改版時記得同步更新 APP_VER -->
+  <footer class="footer">
+    <span>間歇計時器 <span id="app-ver"></span></span>
+    <span class="sep">·</span>
+    <span>by bluehuan07</span>
+    <span class="sep">·</span>
+    <a href="https://github.com/bluehuan07/timer#readme" target="_blank" rel="noopener">說明文件</a>
+  </footer>
 
   <!-- 設定面板：預設用 hidden 隱藏，點齒輪才展開 -->
   <div class="settings" id="settings" hidden>
@@ -523,12 +555,29 @@
 
   <!-- 註冊 Service Worker：負責離線快取，讓 App 沒網路也能開 -->
   <script>
+    const $ver = document.getElementById("app-ver");
+
     if ("serviceWorker" in navigator) {
+      // SW 回報版本時，把 "timer-v5" 去掉前綴顯示成 "v5"
+      navigator.serviceWorker.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "version") {
+          $ver.textContent = e.data.version.replace("timer-", "");
+        }
+      });
+
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch((err) => {
           console.log("Service Worker 註冊失敗：", err);
         });
+        // 等 SW 就緒後問它目前的快取版本（顯示的就是實際生效那一版）
+        navigator.serviceWorker.ready.then((reg) => {
+          const sw = navigator.serviceWorker.controller || reg.active;
+          if (sw) sw.postMessage("version");
+        });
       });
+    } else {
+      // 沒有 SW（例如用 file:// 直接開）時，顯示破折號表示「未知」
+      $ver.textContent = "—";
     }
   </script>
 </body>
