@@ -1,6 +1,6 @@
 // Service Worker：把 App 的檔案快取起來，讓它離線也能開
 // 之後若改了任何檔案，把版本號 v1 改成 v2…，使用者重開就會更新
-const CACHE = "timer-v3";
+const CACHE = "timer-v4";
 
 // 要預先快取的檔案清單（路徑用相對的，GitHub Pages 放在子目錄也不會壞）
 const ASSETS = [

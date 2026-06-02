@@ -376,21 +376,66 @@
     if (navigator.vibrate) navigator.vibrate(60);
   }
 
-  // 用 Web Audio 產生短嗶聲（不需音檔，離線也能用）
-  let audioCtx = null;
+  // ===== 提示音 =====
+  // 為什麼不用 Web Audio？因為 iOS 會把 Web Audio 合成的聲音歸到「鈴聲」類別，
+  // 受手機側邊「實體靜音鍵」管制 —— 靜音模式下就完全沒聲。
+  // 改用 <audio> 媒體元素播放，走的是另一條音訊通道，靜音模式下也能響。
+  //
+  // 但我們仍然「不放音檔」：用 JS 即時算出一段 WAV 位元組，包成 Blob 當 <audio> 的來源，
+  // 維持本專案「無外部檔案、可離線」的優點。
+  // 概念類比後端：與其去硬碟讀一個 .wav 檔，不如在記憶體裡組好位元組陣列直接送出。
+
+  // 合成一段正弦波 WAV，回傳一個可重複播放的 <audio> 物件
+  function makeBeep(freq, durationSec) {
+    const rate = 44100;
+    const n = Math.floor(rate * durationSec);
+    const buf = new ArrayBuffer(44 + n * 2);   // 44 bytes 檔頭 + 16-bit 單聲道資料
+    const view = new DataView(buf);
+    const put = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+    // ---- WAV 檔頭 ----
+    put(0, "RIFF");  view.setUint32(4, 36 + n * 2, true);  put(8, "WAVE");
+    put(12, "fmt "); view.setUint32(16, 16, true);          // fmt 區塊長度
+    view.setUint16(20, 1, true);                            // PCM
+    view.setUint16(22, 1, true);                            // 單聲道
+    view.setUint32(24, rate, true);
+    view.setUint32(28, rate * 2, true);                     // 每秒位元組數
+    view.setUint16(32, 2, true);                            // 每個取樣的位元組數
+    view.setUint16(34, 16, true);                           // 位元深度
+    put(36, "data"); view.setUint32(40, n * 2, true);
+    // ---- 音訊資料：正弦波，頭尾各 10ms 淡入淡出避免「啪」的爆音 ----
+    const fade = 0.01 * rate;
+    for (let i = 0; i < n; i++) {
+      let env = 1;
+      if (i < fade) env = i / fade;
+      else if (i > n - fade) env = (n - i) / fade;
+      const sample = Math.sin(2 * Math.PI * freq * (i / rate)) * env * 0.6;
+      view.setInt16(44 + i * 2, sample * 32767, true);
+    }
+    const audio = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" })));
+    audio.preload = "auto";
+    return audio;
+  }
+
+  // 兩種音色：進入「專注」較高（提振），進入「休息」較低（放鬆）
+  const SND_FOCUS = makeBeep(880, 0.28);
+  const SND_REST  = makeBeep(523, 0.30);
+
+  // 依「剛切換到的階段」播對應的音
   function beep() {
-    try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.26);
-    } catch (e) { /* 部分環境無法播放就略過 */ }
+    const a = PHASES[phaseIndex].key === "focus" ? SND_FOCUS : SND_REST;
+    try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) { /* 略過 */ }
+  }
+
+  // iOS 規定：媒體只能在「使用者手指觸發的當下」首次播放才會解鎖。
+  // 所以在點「開始」時先靜悄悄地播一下再暫停，幫每個音效「開鎖」，
+  // 之後計時器自動觸發的 beep() 才放得出聲。
+  let audioUnlocked = false;
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    [SND_FOCUS, SND_REST].forEach(a => {
+      a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+    });
   }
 
   // 每 100ms 檢查一次剩餘時間
@@ -405,8 +450,8 @@
   function start() {
     running = true;
     endTime = Date.now() + remainingMs;
-    // iOS 必須在使用者點擊後才能啟動音訊
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    // iOS 必須在使用者點擊的當下解鎖音訊，計時器自動觸發的提示音才放得出來
+    unlockAudio();
     ticker = setInterval(tick, 100);
     $playIcon.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>'; // 暫停圖示
   }
