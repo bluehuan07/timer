@@ -161,6 +161,8 @@
     /* 已完成的「專注」回合計數 */
     .cycles {
       position: relative; z-index: 1;
+      /* 緊接在「專注」標籤下方，抵銷 body 的 38px gap 拉近距離 */
+      margin-top: -26px;
       font-size: 13px; letter-spacing: .12em;
       color: var(--muted); font-weight: 600;
     }
@@ -250,13 +252,95 @@
       transition: color .2s ease;
     }
     .footer a:active { color: var(--ink); }
+
+    /* ===== 頂部「安裝 App」按鈕：純文字，放在「專注」標籤上方 ===== */
+    .install-cta {
+      position: relative; z-index: 1;
+      padding: 2px;
+      /* body 的 gap 是 38px，距離「專注」太遠，用負 margin 拉近一點 */
+      margin-bottom: -22px;
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: .12em;
+      transition: transform .15s ease, color .6s ease;
+    }
+    .install-cta:active { transform: scale(.94); }
+
+    /* ===== 安裝教學彈窗 =====
+       平時用 hidden 隱藏，點頁尾「安裝 App」才顯示。蓋一層半透明暗幕 + 置中卡片 */
+    .modal {
+      position: fixed; inset: 0; z-index: 100;
+      display: grid; place-items: center;
+      padding: 24px;
+      background: rgba(8,9,13,.66);
+      -webkit-backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px);
+    }
+    .modal[hidden] { display: none; }
+    .modal-card {
+      width: min(88vw, 380px);
+      max-height: 82dvh; overflow-y: auto;
+      background: #14151c;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 24px;
+      padding: 26px 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      animation: pop .28s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes pop {
+      0%   { transform: scale(.92); opacity: 0; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+    .modal-card h2 {
+      font-size: 19px; font-weight: 800; letter-spacing: .04em;
+      margin-bottom: 8px;
+    }
+    .modal-card .lead {
+      font-size: 13px; color: var(--muted); font-weight: 600;
+      line-height: 1.65; margin-bottom: 20px;
+    }
+    /* 步驟用 counter 自動編號，左邊配一顆圓形序號 */
+    .modal-card ol {
+      list-style: none; counter-reset: step;
+      display: grid; gap: 14px;
+    }
+    .modal-card li {
+      counter-increment: step;
+      display: flex; gap: 12px; align-items: flex-start;
+      font-size: 15px; line-height: 1.5;
+    }
+    .modal-card li::before {
+      content: counter(step);
+      flex: 0 0 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--accent); color: #0c0d12;
+      font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 14px;
+      display: grid; place-items: center;
+    }
+    .modal-card li b { font-weight: 800; color: var(--ink); }
+    .modal-card .done-note {
+      margin-top: 20px; font-size: 13px; color: var(--muted);
+      line-height: 1.65; font-weight: 600;
+    }
+    .modal-close {
+      margin-top: 22px; width: 100%; height: 48px;
+      border-radius: 16px;
+      background: var(--accent); color: #0c0d12;
+      font-weight: 800; font-size: 16px; letter-spacing: .05em;
+      transition: background .6s ease, transform .15s ease;
+    }
   </style>
 </head>
 <body class="focus">
 
   <div class="flash" id="flash"></div>
 
+  <!-- 頂部「安裝 App」按鈕：點開教學彈窗 -->
+  <button class="install-cta" id="install-help">安裝 App</button>
+
   <div class="phase-label" id="label">專注<small id="round-hint">第 1 回合</small></div>
+  <div class="cycles">已完成 <b id="done">0</b> 回合專注</div>
 
   <div class="dial" id="dial">
     <svg viewBox="0 0 200 200">
@@ -283,8 +367,6 @@
     </button>
   </div>
 
-  <div class="cycles">已完成 <b id="done">0</b> 回合專注</div>
-
   <!-- 底部頁尾：版本、作者、說明文件連結。改版時記得同步更新 APP_VER -->
   <footer class="footer">
     <span>間歇計時器 <span id="app-ver"></span></span>
@@ -293,6 +375,23 @@
     <span class="sep">·</span>
     <a href="https://github.com/bluehuan07/timer#readme" target="_blank" rel="noopener">說明文件</a>
   </footer>
+
+  <!-- 安裝教學彈窗：教使用者把網頁加到主畫面當 App 用。預設 hidden -->
+  <div class="modal" id="install-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="install-title">
+      <h2 id="install-title">安裝成 App</h2>
+      <p class="lead">把這個計時器加到手機主畫面，就能像原生 App 一樣全螢幕開啟，離線也能用。</p>
+      <ol>
+        <li>點畫面右下角的 <b>⋯</b> 按鈕</li>
+        <li>選擇 <b>分享</b></li>
+        <li>往下滑，點 <b>加入主畫面</b></li>
+        <li>確認 打開為網頁 App 已開啟（通常預設開啟）</li>
+        <li>按 <b>加入</b></li>
+      </ol>
+      <p class="done-note">完成！主畫面會出現計時器圖示，點開即全螢幕。</p>
+      <button class="modal-close" id="install-close">知道了</button>
+    </div>
+  </div>
 
   <!-- 設定面板：預設用 hidden 隱藏，點齒輪才展開 -->
   <div class="settings" id="settings" hidden>
@@ -548,6 +647,21 @@
   // 直接打字輸入時也即時套用
   $focusVal.addEventListener("change", applySettings);
   $restVal.addEventListener("change", applySettings);
+
+  // ===== 安裝教學彈窗 =====
+  const $installHelp  = document.getElementById("install-help");
+  const $installModal = document.getElementById("install-modal");
+  const $installClose = document.getElementById("install-close");
+
+  const openInstall  = () => { $installModal.hidden = false; };
+  const closeInstall = () => { $installModal.hidden = true; };
+
+  $installHelp.addEventListener("click", openInstall);
+  $installClose.addEventListener("click", closeInstall);
+  // 點卡片以外的暗幕區域也能關閉
+  $installModal.addEventListener("click", (e) => {
+    if (e.target === $installModal) closeInstall();
+  });
 
   // 初始畫面
   render();
