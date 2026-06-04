@@ -485,10 +485,11 @@
 
   // 切換到下一個階段：閃光 + 彈跳 + 嗶聲
   function nextPhase() {
-    // 若剛結束的是「專注」，回合數 +1
+    phaseIndex = (phaseIndex + 1) % PHASES.length;  // 循環
+
+    // 規格：進入「專注」時回合數才 +1（休息不算進回合）
     if (PHASES[phaseIndex].key === "focus") doneFocus++;
 
-    phaseIndex = (phaseIndex + 1) % PHASES.length;  // 循環
     remainingMs = PHASES[phaseIndex].seconds * 1000;
     endTime = Date.now() + remainingMs;
 
