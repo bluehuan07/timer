@@ -193,6 +193,10 @@
     .dot { width: 9px; height: 9px; border-radius: 50%; }
     .dot.focus { background: var(--focus); }
     .dot.rest  { background: var(--rest); }
+    .dot.sets  { background: var(--muted); }
+
+    /* 組數的顯示值是 span（不是輸入框），要設成 inline-block 才吃得到寬度與置中 */
+    #sets-val { display: inline-block; line-height: 46px; }
 
     .stepper { display: flex; align-items: center; gap: 6px; }
     .step {
@@ -339,8 +343,8 @@
   <!-- 頂部「安裝 App」按鈕：點開教學彈窗 -->
   <button class="install-cta" id="install-help">安裝 App</button>
 
-  <div class="phase-label" id="label">專注<small id="round-hint">第 1 回合</small></div>
-  <div class="cycles">已完成 <b id="done">0</b> 回合專注</div>
+  <div class="phase-label" id="label">專注<small id="round-hint">第 1 組</small></div>
+  <div class="cycles">已完成 <b id="done">0</b> 組</div>
 
   <div class="dial" id="dial">
     <svg viewBox="0 0 200 200">
@@ -418,6 +422,18 @@
         <button class="step" data-act="rest+" aria-label="增加">+</button>
       </div>
     </div>
+    <!-- 組數：一個專注 + 一個休息為一組。設定要跑幾組後自動停止，∞ 表示無限循環 -->
+    <div class="set-row">
+      <span class="set-name"><span class="dot sets"></span>組數</span>
+      <div class="stepper">
+        <button class="step" id="sets-dec" aria-label="減少">−</button>
+        <span class="val-wrap">
+          <span class="val" id="sets-val">∞</span>
+          <span class="unit">組</span>
+        </span>
+        <button class="step" id="sets-inc" aria-label="增加">+</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -448,6 +464,7 @@
   const $settings = document.getElementById("settings");
   const $focusVal = document.getElementById("focus-val");
   const $restVal  = document.getElementById("rest-val");
+  const $setsVal  = document.getElementById("sets-val");
 
   $bar.style.strokeDasharray = CIRC;
 
@@ -457,7 +474,9 @@
   let endTime = 0;             // 倒數結束的時間戳（用時間戳比逐秒遞減更準）
   let running = false;
   let ticker = null;           // setInterval 的 id
-  let doneFocus = 0;           // 完成幾次「專注」
+  let doneFocus = 0;           // 完成幾次「專注」＝完成幾組（一專注一休息為一組）
+  let targetSets = 0;          // 目標組數，跑滿就停；0 = 無限循環
+  let finished = false;        // 是否已跑完設定的組數
 
   // 把毫秒格式化成 M:SS
   function fmt(ms) {
@@ -469,6 +488,17 @@
 
   // 把目前狀態畫到畫面上
   function render() {
+    $done.textContent = doneFocus;
+
+    // 跑滿設定組數：顯示完成畫面，不再倒數
+    if (finished) {
+      $time.textContent = "0:00";
+      $bar.style.strokeDashoffset = CIRC;      // 空環
+      $label.firstChild.textContent = "完成";
+      $hint.textContent = "共 " + doneFocus + " 組";
+      return;
+    }
+
     const phase = PHASES[phaseIndex];
     const totalMs = phase.seconds * 1000;
     const left = Math.max(0, remainingMs);
@@ -479,22 +509,45 @@
 
     $label.firstChild.textContent = phase.name;
     document.body.className = phase.key;       // 換主色（focus / rest）
-    $hint.textContent = "第 " + (doneFocus + 1) + " 回合";
-    $done.textContent = doneFocus;
+    // 設了組數上限就顯示「第 X / N 組」，無限循環則只顯示「第 X 組」
+    $hint.textContent = targetSets > 0
+      ? "第 " + (doneFocus + 1) + " / " + targetSets + " 組"
+      : "第 " + (doneFocus + 1) + " 組";
   }
 
   // 切換到下一個階段：閃光 + 彈跳 + 嗶聲
   function nextPhase() {
+    // 跑完一次「休息」回到「專注」＝完成一整組
+    const finishedASet = PHASES[phaseIndex].key === "rest";
     phaseIndex = (phaseIndex + 1) % PHASES.length;  // 循環
 
-    // 規格：進入「專注」時回合數才 +1（休息不算進回合）
+    // 規格：進入「專注」時組數才 +1（休息不算進組數）
     if (PHASES[phaseIndex].key === "focus") doneFocus++;
+
+    // 設了組數上限且已跑滿 → 全部完成，停止（不再開始新的一組）
+    if (finishedASet && targetSets > 0 && doneFocus >= targetSets) {
+      finish();
+      return;
+    }
 
     remainingMs = PHASES[phaseIndex].seconds * 1000;
     endTime = Date.now() + remainingMs;
 
     fireFlash();
     beep();
+  }
+
+  // 跑滿設定的組數：停止計時，顯示完成狀態
+  function finish() {
+    running = false;
+    clearInterval(ticker);
+    ticker = null;
+    finished = true;
+    remainingMs = 0;
+    $playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';  // 回到播放圖示
+    fireFlash();   // 最後再閃一下 + 響一聲，提示整輪結束
+    beep();
+    render();
   }
 
   // 觸發全螢幕閃光 + 圓盤彈跳（重新觸發動畫的技巧：先移除 class 再加回）
@@ -580,6 +633,13 @@
   }
 
   function start() {
+    // 上一輪已跑完，再按開始＝從第一組重新開始
+    if (finished) {
+      finished = false;
+      phaseIndex = 0;
+      doneFocus = 0;
+      remainingMs = PHASES[0].seconds * 1000;
+    }
     running = true;
     endTime = Date.now() + remainingMs;
     // iOS 必須在使用者點擊的當下解鎖音訊，計時器自動觸發的提示音才放得出來
@@ -599,6 +659,7 @@
     pause();
     phaseIndex = 0;
     doneFocus = 0;
+    finished = false;
     remainingMs = PHASES[0].seconds * 1000;
     render();
   }
@@ -648,6 +709,22 @@
   // 直接打字輸入時也即時套用
   $focusVal.addEventListener("change", applySettings);
   $restVal.addEventListener("change", applySettings);
+
+  // ===== 組數設定 =====
+  // 0 = 無限循環（顯示 ∞），1~99 = 跑滿幾組就自動停止
+  function renderSets() {
+    $setsVal.textContent = targetSets === 0 ? "∞" : targetSets;
+  }
+
+  function changeSets(delta) {
+    targetSets = Math.min(99, Math.max(0, targetSets + delta));
+    renderSets();
+    // 沒在跑時即時更新提示（例如「第 1 / 5 組」），跑的時候下一次 render 自然會帶到
+    if (!running && !finished) render();
+  }
+
+  document.getElementById("sets-inc").addEventListener("click", () => changeSets(1));
+  document.getElementById("sets-dec").addEventListener("click", () => changeSets(-1));
 
   // ===== 安裝教學彈窗 =====
   const $installHelp  = document.getElementById("install-help");
