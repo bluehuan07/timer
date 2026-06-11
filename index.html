@@ -195,6 +195,7 @@
     .dot.rest  { background: var(--rest); }
     .dot.sets  { background: var(--muted); }
     .dot.sound { background: var(--accent); }
+    .dot.flash { background: #fff; }
 
     /* 組數的顯示值是 span（不是輸入框），要設成 inline-block 才吃得到寬度與置中 */
     #sets-val { display: inline-block; line-height: 46px; }
@@ -465,6 +466,13 @@
         <span class="toggle-knob"></span>
       </button>
     </div>
+    <!-- 閃光開關：關掉後階段切換不再有全螢幕白光，仍保留圓盤彈跳 -->
+    <div class="set-row">
+      <span class="set-name"><span class="dot flash"></span>閃光</span>
+      <button class="toggle" id="flash-toggle" role="switch" aria-checked="true" aria-label="閃光開關">
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
   </div>
 
   <script>
@@ -497,6 +505,7 @@
   const $restVal  = document.getElementById("rest-val");
   const $setsVal  = document.getElementById("sets-val");
   const $soundToggle = document.getElementById("sound-toggle");
+  const $flashToggle = document.getElementById("flash-toggle");
 
   $bar.style.strokeDasharray = CIRC;
 
@@ -511,6 +520,8 @@
   let finished = false;        // 是否已跑完設定的組數
   // 聲音開關：用 localStorage 記住（重整後仍保留）。沒存過時預設開啟。
   let soundOn = localStorage.getItem("timer-sound") !== "off";
+  // 閃光開關：同樣記住、預設開啟。只關全螢幕白光，圓盤彈跳仍保留。
+  let flashOn = localStorage.getItem("timer-flash") !== "off";
 
   // 把毫秒格式化成 M:SS
   function fmt(ms) {
@@ -589,8 +600,8 @@
     $flash.classList.remove("fire");
     $dial.classList.remove("bounce");
     void $flash.offsetWidth;   // 強制瀏覽器重排，動畫才會重播
-    $flash.classList.add("fire");
-    $dial.classList.add("bounce");
+    if (flashOn) $flash.classList.add("fire");   // 閃光關閉時跳過全螢幕白光
+    $dial.classList.add("bounce");               // 圓盤彈跳不受閃光開關影響
     // iPhone Safari 目前不支援震動 API，Android 才會震
     if (navigator.vibrate) navigator.vibrate(60);
   }
@@ -774,6 +785,17 @@
     if (soundOn) unlockAudio();
   });
   renderSound();  // 初始載入時依照記住的設定顯示
+
+  // ===== 閃光開關 =====
+  function renderFlash() {
+    $flashToggle.setAttribute("aria-checked", flashOn ? "true" : "false");
+  }
+  $flashToggle.addEventListener("click", () => {
+    flashOn = !flashOn;
+    localStorage.setItem("timer-flash", flashOn ? "on" : "off");
+    renderFlash();
+  });
+  renderFlash();
 
   // ===== 安裝教學彈窗 =====
   const $installHelp  = document.getElementById("install-help");
