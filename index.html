@@ -194,9 +194,33 @@
     .dot.focus { background: var(--focus); }
     .dot.rest  { background: var(--rest); }
     .dot.sets  { background: var(--muted); }
+    .dot.sound { background: var(--accent); }
 
     /* 組數的顯示值是 span（不是輸入框），要設成 inline-block 才吃得到寬度與置中 */
     #sets-val { display: inline-block; line-height: 46px; }
+
+    /* ===== 聲音開關（toggle 樣式的按鈕） =====
+       關閉時是灰底、圓鈕靠左；開啟時是強調色底、圓鈕滑到右邊 */
+    .toggle {
+      position: relative;
+      width: 52px; height: 30px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.06);
+      transition: background .2s ease, border-color .2s ease;
+      cursor: pointer;
+    }
+    .toggle[aria-checked="true"] {
+      background: var(--accent);
+      border-color: transparent;
+    }
+    .toggle-knob {
+      position: absolute; top: 50%; left: 3px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; transform: translateY(-50%);
+      transition: left .2s ease;
+    }
+    .toggle[aria-checked="true"] .toggle-knob { left: 26px; }
 
     .stepper { display: flex; align-items: center; gap: 6px; }
     .step {
@@ -434,6 +458,13 @@
         <button class="step" id="sets-inc" aria-label="增加">+</button>
       </div>
     </div>
+    <!-- 聲音開關：關掉後階段切換只剩閃光與彈跳，不再發出提示音 -->
+    <div class="set-row">
+      <span class="set-name"><span class="dot sound"></span>聲音</span>
+      <button class="toggle" id="sound-toggle" role="switch" aria-checked="true" aria-label="聲音開關">
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
   </div>
 
   <script>
@@ -465,6 +496,7 @@
   const $focusVal = document.getElementById("focus-val");
   const $restVal  = document.getElementById("rest-val");
   const $setsVal  = document.getElementById("sets-val");
+  const $soundToggle = document.getElementById("sound-toggle");
 
   $bar.style.strokeDasharray = CIRC;
 
@@ -477,6 +509,8 @@
   let doneFocus = 0;           // 完成幾次「專注」＝完成幾組（一專注一休息為一組）
   let targetSets = 0;          // 目標組數，跑滿就停；0 = 無限循環
   let finished = false;        // 是否已跑完設定的組數
+  // 聲音開關：用 localStorage 記住（重整後仍保留）。沒存過時預設開啟。
+  let soundOn = localStorage.getItem("timer-sound") !== "off";
 
   // 把毫秒格式化成 M:SS
   function fmt(ms) {
@@ -607,6 +641,7 @@
 
   // 依「剛切換到的階段」播對應的音
   function beep() {
+    if (!soundOn) return;            // 聲音關閉時直接跳過，只剩閃光與彈跳
     const a = PHASES[phaseIndex].key === "focus" ? SND_FOCUS : SND_REST;
     try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) { /* 略過 */ }
   }
@@ -725,6 +760,20 @@
 
   document.getElementById("sets-inc").addEventListener("click", () => changeSets(1));
   document.getElementById("sets-dec").addEventListener("click", () => changeSets(-1));
+
+  // ===== 聲音開關 =====
+  // 把開關外觀同步到目前狀態（aria-checked 同時控制無障礙語意與 CSS 樣式）
+  function renderSound() {
+    $soundToggle.setAttribute("aria-checked", soundOn ? "true" : "false");
+  }
+  $soundToggle.addEventListener("click", () => {
+    soundOn = !soundOn;
+    localStorage.setItem("timer-sound", soundOn ? "on" : "off");
+    renderSound();
+    // 開啟的當下順手解鎖音訊，這樣這次點擊後計時器自動觸發的提示音才放得出來
+    if (soundOn) unlockAudio();
+  });
+  renderSound();  // 初始載入時依照記住的設定顯示
 
   // ===== 安裝教學彈窗 =====
   const $installHelp  = document.getElementById("install-help");
