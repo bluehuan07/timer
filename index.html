@@ -168,20 +168,22 @@
     }
     .cycles b { color: var(--ink); }
 
-    /* ===== 設定面板（點齒輪展開） ===== */
-    .settings {
-      position: relative; z-index: 1;
+    /* ===== 設定面板：點齒輪展開的置中浮層 =====
+       早期是排在版面裡，但項目變多後（專注／休息／組數／聲音／閃光）在小螢幕手機會被
+       擠出畫面外、被 body 的 overflow:hidden 裁掉，最底下的「閃光」就看不到也捲不到。
+       所以改成跟「安裝教學」一樣的置中浮層：外層用 .modal 鋪暗幕，卡片本身限制高度，
+       內容過長時卡片自己會出現捲軸（拉霸）。 */
+    .settings-card {
       width: min(86vw, 360px);
+      max-height: 82dvh; overflow-y: auto;
       display: grid; gap: 16px;
       padding: 20px 22px;
-      border: 1px solid rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.12);
       border-radius: 24px;
-      background: rgba(255,255,255,.03);
-      -webkit-backdrop-filter: blur(8px);
-      backdrop-filter: blur(8px);
+      background: #14151c;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      animation: pop .28s cubic-bezier(.34,1.56,.64,1);
     }
-    /* 用 hidden 屬性切換顯示／隱藏，最簡單的做法 */
-    .settings[hidden] { display: none; }
 
     .set-row {
       display: flex; align-items: center; justify-content: space-between;
@@ -422,8 +424,9 @@
     </div>
   </div>
 
-  <!-- 設定面板：預設用 hidden 隱藏，點齒輪才展開 -->
-  <div class="settings" id="settings" hidden>
+  <!-- 設定面板：置中浮層，預設用 hidden 隱藏，點齒輪才展開；點暗幕關閉 -->
+  <div class="modal" id="settings" hidden>
+   <div class="settings-card">
     <div class="set-row">
       <span class="set-name"><span class="dot focus"></span>專注</span>
       <div class="stepper">
@@ -473,6 +476,7 @@
         <span class="toggle-knob"></span>
       </button>
     </div>
+   </div>
   </div>
 
   <script>
@@ -718,6 +722,8 @@
 
   // 點齒輪：展開／收合面板
   $gear.addEventListener("click", () => { $settings.hidden = !$settings.hidden; });
+  // 點卡片以外的暗幕區域也能關閉（齒輪被浮層蓋住時，點它的位置等於點到暗幕，一樣會關）
+  $settings.addEventListener("click", (e) => { if (e.target === $settings) $settings.hidden = true; });
 
   // 把數字限制在 5 ~ 3600 秒之間，並對齊到 5 的倍數
   function clampSec(v) {
