@@ -197,7 +197,9 @@
     .dot.rest  { background: var(--rest); }
     .dot.sets  { background: var(--muted); }
     .dot.sound { background: var(--accent); }
-    .dot.flash { background: #fff; }
+    /* 注意：class 不能叫 .flash，會撞到下面全螢幕閃光遮罩的 .flash 規則
+       （那條是 position:fixed; inset:0; opacity:0），圓點會變透明且脫離排版。改用 .light */
+    .dot.light { background: #f5c84b; }   /* 暖黃，代表閃光，與上面幾顆有色圓點同型式 */
 
     /* 組數的顯示值是 span（不是輸入框），要設成 inline-block 才吃得到寬度與置中 */
     #sets-val { display: inline-block; line-height: 46px; }
@@ -471,7 +473,7 @@
     </div>
     <!-- 閃光開關：關掉後階段切換不再有全螢幕白光，仍保留圓盤彈跳 -->
     <div class="set-row">
-      <span class="set-name"><span class="dot flash"></span>閃光</span>
+      <span class="set-name"><span class="dot light"></span>閃光</span>
       <button class="toggle" id="flash-toggle" role="switch" aria-checked="true" aria-label="閃光開關">
         <span class="toggle-knob"></span>
       </button>
